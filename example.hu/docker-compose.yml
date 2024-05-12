@@ -1,0 +1,59 @@
+version: "3"
+
+networks:
+  web:
+    external: true
+  internal:
+    external: false
+
+services:
+  wordpress:
+    image: wordpress:php7.4
+    container_name: example.hu-wordpress
+    environment: 
+      WORDPRESS_DB_HOST: 
+      WORDPRESS_DB_USER: 
+      WORDPRESS_DB_PASSWORD: 
+      WORDPRESS_DB_NAME: 
+    volumes:
+      - wordpress_data:/var/www/html
+    labels:
+      - traefik.enable=true
+      #- traefik.http.middlewares.mywebserver-redirect-web-secure.redirectscheme.scheme=https
+      - traefik.http.routers.example-web.middlewares=redirect-web-to-websecure@file
+      #- traefik.http.middlewares.www-redirect.redirectregex.regex=^https?://www\\.(.+)
+      #- traefik.http.middlewares.www-redirect.redirectregex.replacement=https://mydomain/$${1}
+      - traefik.http.routers.example-web.rule=Host(`example.hu`, `www.example.hu`)
+      - traefik.http.routers.example-web.entrypoints=web
+      - traefik.http.routers.example-websecure.rule=Host(`example.hu`, `www.example.hu`)
+      - traefik.http.routers.example-websecure.tls.certresolver=lets-encrypt
+      - traefik.http.routers.example-websecure.tls=true
+      - traefik.http.routers.example-websecure.entrypoints=websecure
+      # if you have multiple ports exposed on the service, specify port in the web-secure service
+      - traefik.http.services.example-websecure.loadbalancer.server.port=80
+    networks:
+      - internal
+      - web
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:5.7
+    container_name: example.hu-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 
+      MYSQL_USER: 
+      MYSQL_PASSWORD: 
+      MYSQL_DATABASE: 
+    volumes:
+      - mysql_data:/var/lib/mysql
+    labels:
+      - traefik.enable=false
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  wordpress_data:
